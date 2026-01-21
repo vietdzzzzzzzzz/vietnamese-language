@@ -1,48 +1,24 @@
+import { StreamingTextResponse } from "ai"
+
 export const maxDuration = 30
-export const runtime = "nodejs"
-
-import OpenAI from "openai"
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 export async function POST(req: Request) {
   const { messages } = await req.json()
 
-  const response = await openai.responses.create({
-    model: "gpt-4.1",
-    input: [
-      {
-        role: "system",
-        content:
-          "Bạn là AI Trainer của GYMORA. Chỉ trả lời về gym, tập luyện, dinh dưỡng, lịch tập, phục hồi, động viên người dùng.",
-      },
-      ...messages,
-    ],
-  })
+  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || ""
 
-  const text =
-    (response as any)?.output_text ||
-    "Xin lỗi, tôi chưa thể trả lời lúc này."
+  let response = "Chào bạn! Tôi là AI Trainer của GYMORA. Tôi có thể giúp gì cho bạn hôm nay?"
 
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream({
-    async start(controller) {
-      const words = text.split(" ")
-      for (const word of words) {
-        controller.enqueue(encoder.encode(`0:"${word} "\n`))
-        await new Promise((r) => setTimeout(r, 20))
-      }
-      controller.enqueue(encoder.encode('0:""\n'))
-      controller.close()
-    },
-  })
+  if (lastMessage.includes("dinh dưỡng") || lastMessage.includes("ăn")) {
+    response =
+      "Về dinh dưỡng, bạn nên ăn đủ protein (1.6–2.2g/kg), carb phức hợp và chất béo tốt. Chia nhỏ bữa ăn trong ngày để hấp thu tốt hơn."
+  } else if (lastMessage.includes("squat")) {
+    response =
+      "Kỹ thuật squat đúng: chân rộng bằng vai, lưng thẳng, hạ hông ra sau như ngồi ghế, xuống đến khi đùi song song sàn, đẩy gót chân lên."
+  } else if (lastMessage.includes("tăng cơ")) {
+    response =
+      "Để tăng cơ hiệu quả: tập 8–12 reps, ngủ 7–9 tiếng, ăn dư 300–500 kcal/ngày và duy trì ít nhất 8–12 tuần."
+  }
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Vercel-AI-Data-Stream": "v1",
-    },
-  })
+  return new StreamingTextResponse(response)
 }
