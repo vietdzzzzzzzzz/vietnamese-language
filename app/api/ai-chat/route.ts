@@ -1,36 +1,52 @@
-export const runtime = "edge";
+import { generateText } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 
-const mockResponses = [
-  "Chào bạn! Tôi là AI Trainer của GYMORA. Tôi có thể giúp gì cho bạn hôm nay?",
-  "Để tập hiệu quả, bạn nên:\n- Khởi động 5–10 phút\n- Tập chính 30–45 phút\n- Thả lỏng 5–10 phút\n- Uống đủ nước",
-  "Về dinh dưỡng: ăn đủ protein (1.6–2.2g/kg), carb phức hợp, chất béo tốt. Chia 4–5 bữa/ngày.",
-  "Kỹ thuật squat đúng:\n1. Chân rộng bằng vai\n2. Lưng thẳng\n3. Đẩy hông ra sau\n4. Xuống đến khi đùi song song sàn\n5. Đẩy gót đứng lên",
-];
+export const runtime = "nodejs" // ✅ đổi khỏi edge để ổn định khi dev
+
+const systemPrompt = `Bạn là AI Trainer chuyên nghiệp của GYMORA...`
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null)
+    const messages = body?.messages
 
-    const messages = body?.messages ?? [];
-    const lastMessage =
-      messages.length > 0
-        ? String(messages[messages.length - 1].content || "").toLowerCase()
-        : "";
+    if (!Array.isArray(messages)) {
+      return new Response(JSON.stringify({ error: "Invalid messages format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
 
-    let response = mockResponses[1];
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "Missing OPENAI_API_KEY" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
 
-    if (messages.length === 1) response = mockResponses[0];
-    else if (lastMessage.includes("dinh dưỡng") || lastMessage.includes("ăn"))
-      response = mockResponses[2];
-    else if (lastMessage.includes("squat") || lastMessage.includes("kỹ thuật"))
-      response = mockResponses[3];
+    const openai = createOpenAI({ apiKey })
+    const model = openai("gpt-4o-mini")
 
-    return Response.json({ content: response });
-  } catch (err) {
-    console.error("AI CHAT ERROR:", err);
-    return new Response(
-      JSON.stringify({ content: "❌ Lỗi AI backend" }),
-      { status: 500 }
-    );
+    const lastUser =
+      [...messages].reverse().find((m: any) => m?.role === "user")?.content ?? ""
+
+    const { text } = await generateText({
+      model,
+      system: systemPrompt,
+      prompt: String(lastUser),
+      temperature: 0.7,
+      maxOutputTokens: 1000,
+    })
+
+    return new Response(JSON.stringify({ content: text }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message ?? "Server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 }
