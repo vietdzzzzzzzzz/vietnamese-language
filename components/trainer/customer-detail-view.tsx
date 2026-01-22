@@ -40,6 +40,7 @@ interface CustomerDetailViewProps {
   trainerName: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialTab?: "info" | "exercises" | "diet" | "progress" | "history" | "chat"
 }
 
 type AttendanceRecord = {
@@ -65,6 +66,7 @@ export function CustomerDetailView({
   trainerName,
   open,
   onOpenChange,
+  initialTab = "info",
 }: CustomerDetailViewProps) {
   const [exercises, setExercises] = useState<AssignedExercise[]>([])
   const [dietPlans, setDietPlans] = useState<DietPlan[]>([])
@@ -73,13 +75,17 @@ export function CustomerDetailView({
   const [memberDetails, setMemberDetails] = useState<CustomerProfile | null>(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<
+    "info" | "exercises" | "diet" | "progress" | "history" | "chat"
+  >(initialTab)
 
   useEffect(() => {
     if (open && customer) {
+      setActiveTab(initialTab)
       loadLocalData()
       loadMemberDetails()
     }
-  }, [open, customer])
+  }, [open, customer, initialTab])
 
   const loadLocalData = () => {
     const exercisesKey = `assigned_exercises_${customer.id}`
@@ -276,7 +282,13 @@ export function CustomerDetailView({
             </Card>
           </div>
 
-          <Tabs defaultValue="info" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "info" | "exercises" | "diet" | "progress" | "history" | "chat")
+            }
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="info">Thông tin</TabsTrigger>
               <TabsTrigger value="exercises">Bài tập</TabsTrigger>

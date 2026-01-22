@@ -22,7 +22,7 @@ import type { CustomerProfile } from "@/types/trainer"
 
 interface MyClientsTabProps {
   trainerId: string
-  onCustomerSelect: (customer: CustomerProfile) => void
+  onCustomerSelect: (customer: CustomerProfile, tab?: "info" | "exercises" | "chat") => void
 }
 
 type ClientPackage =
@@ -135,7 +135,14 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
     }
   }, [trainerId])
 
-  const filteredClients = clients.filter((client) => client.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredClients = clients.filter((client) => {
+    const needle = searchQuery.trim().toLowerCase()
+    if (!needle) return true
+    return (
+      client.name.toLowerCase().includes(needle) ||
+      client.email.toLowerCase().includes(needle)
+    )
+  })
 
   const getProgressPercent = (client: ClientItem) => {
     const totalChange = Math.abs(client.targetWeight - client.startWeight)
@@ -348,11 +355,61 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 bg-transparent">
+                    <Button variant="outline" className="flex-1 bg-transparent" onClick={() => onCustomerSelect({
+                          id: client.id.toString(),
+                          name: client.name,
+                          email: client.email,
+                          avatar: client.avatar,
+                          currentWeight: client.currentWeight,
+                          targetWeight: client.targetWeight,
+                          joinDate: new Date(client.joinDate),
+                          status: client.status as "active" | "inactive",
+                          package: client.package
+                            ? {
+                                name: client.package.name,
+                                type: client.package.type,
+                                totalSessions:
+                                  client.package.type === "session" ? client.package.totalSessions : undefined,
+                                usedSessions:
+                                  client.package.type === "session" ? (client.package.usedSessions || 0) : 0,
+                                startDate: new Date(
+                                  client.package.type === "session" ? client.joinDate : client.joinDate,
+                                ),
+                                status: "active",
+                              }
+                            : undefined,
+                          streak: client.streak,
+                          totalWorkouts: client.totalWorkouts,
+                        }, "exercises")}>
                       <Calendar className="w-4 h-4 mr-2" />
                       Giao bài tập
                     </Button>
-                    <Button variant="outline" className="flex-1 bg-transparent">
+                    <Button variant="outline" className="flex-1 bg-transparent" onClick={() => onCustomerSelect({
+                          id: client.id.toString(),
+                          name: client.name,
+                          email: client.email,
+                          avatar: client.avatar,
+                          currentWeight: client.currentWeight,
+                          targetWeight: client.targetWeight,
+                          joinDate: new Date(client.joinDate),
+                          status: client.status as "active" | "inactive",
+                          package: client.package
+                            ? {
+                                name: client.package.name,
+                                type: client.package.type,
+                                totalSessions:
+                                  client.package.type === "session" ? client.package.totalSessions : undefined,
+                                usedSessions:
+                                  client.package.type === "session" ? (client.package.usedSessions || 0) : 0,
+                                startDate: new Date(
+                                  client.package.type === "session" ? client.joinDate : client.joinDate,
+                                ),
+                                status: "active",
+                              }
+                            : undefined,
+                          streak: client.streak,
+                          totalWorkouts: client.totalWorkouts,
+                        }, "chat")}>
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Nhắn tin
                     </Button>
@@ -381,7 +438,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                             : undefined,
                           streak: client.streak,
                           totalWorkouts: client.totalWorkouts,
-                        })
+                        }, "info")
                       }
                     >
                       <Eye className="w-4 h-4 mr-2" />

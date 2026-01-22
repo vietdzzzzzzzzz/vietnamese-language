@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -82,51 +82,6 @@ const exercisesData = [
   },
 ]
 
-const workouts = [
-  {
-    id: 1,
-    name: "Ngày chân - Squat Focus",
-    exercises: [
-      { exercise: exercisesData[0], sets: 4, reps: "8-10", restTime: 90, notes: "Tăng trọng lượng dần qua các set" },
-      { exercise: { ...exercisesData[0], id: 11, name: "Leg Press" }, sets: 3, reps: "12-15", restTime: 60 },
-      { exercise: { ...exercisesData[0], id: 12, name: "Lunges" }, sets: 3, reps: "10", restTime: 45 },
-      { exercise: { ...exercisesData[0], id: 13, name: "Leg Curl" }, sets: 3, reps: "12", restTime: 45 },
-    ],
-    duration: 60,
-    calories: 350,
-    completed: true,
-    date: "2025-01-28",
-  },
-  {
-    id: 2,
-    name: "Ngày ngực - Bench Press",
-    exercises: [
-      { exercise: exercisesData[1], sets: 4, reps: "8-10", restTime: 120, notes: "Tập trung vào form đúng" },
-      { exercise: { ...exercisesData[1], id: 21, name: "Incline Press" }, sets: 3, reps: "10-12", restTime: 90 },
-      { exercise: { ...exercisesData[1], id: 22, name: "Flyes" }, sets: 3, reps: "12-15", restTime: 60 },
-      { exercise: { ...exercisesData[1], id: 23, name: "Dips" }, sets: 3, reps: "8-12", restTime: 75 },
-    ],
-    duration: 50,
-    calories: 300,
-    completed: true,
-    date: "2025-01-26",
-  },
-  {
-    id: 3,
-    name: "Ngày lưng - Deadlift",
-    exercises: [
-      { exercise: exercisesData[2], sets: 5, reps: "5", restTime: 180, notes: "Ưu tiên kỹ thuật, không vội tăng trọng lượng" },
-      { exercise: exercisesData[3], sets: 4, reps: "6-8", restTime: 120 },
-      { exercise: { ...exercisesData[2], id: 31, name: "Barbell Rows" }, sets: 4, reps: "8-10", restTime: 90 },
-      { exercise: { ...exercisesData[2], id: 32, name: "Lat Pulldown" }, sets: 3, reps: "12-15", restTime: 60 },
-    ],
-    duration: 55,
-    calories: 320,
-    completed: false,
-    date: "2025-01-30",
-  },
-]
-
 type WorkoutListProps = {
   userId?: string
   currentWeight?: number
@@ -137,6 +92,68 @@ export function WorkoutList({ userId, currentWeight }: WorkoutListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [completedWorkouts, setCompletedWorkouts] = useState<Record<number, boolean>>({})
   const [savingWorkoutId, setSavingWorkoutId] = useState<number | null>(null)
+  const [assignedWorkouts, setAssignedWorkouts] = useState<any[]>([])
+  const [loadingWorkouts, setLoadingWorkouts] = useState(true)
+
+  useEffect(() => {
+    if (!userId) return
+    let isMounted = true
+
+    const loadAssignedWorkouts = async () => {
+      try {
+        const response = await fetch(`/api/assigned-workouts?userId=${userId}`)
+        if (!response.ok) return
+        const data = await response.json()
+        const items = Array.isArray(data?.workouts) ? data.workouts : []
+        if (isMounted) {
+          setAssignedWorkouts(items)
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingWorkouts(false)
+        }
+      }
+    }
+
+    loadAssignedWorkouts()
+    return () => {
+      isMounted = false
+    }
+  }, [userId])
+
+  const buildExercise = (name: string, videoUrl?: string) => {
+    const base = exercisesData.find((exercise) => exercise.name === name)
+    if (base) return base
+    return {
+      id: name,
+      name,
+      category: "Custom",
+      difficulty: "Trung bình" as const,
+      equipment: "Không rõ",
+      muscles: ["Toàn thân"],
+      description: "Bài tập được HLV giao.",
+      instructions: ["Thực hiện theo hướng dẫn của HLV."],
+      tips: ["Giữ kỹ thuật đúng và an toàn."],
+      videoUrl,
+    }
+  }
+
+  const workouts = assignedWorkouts.map((workout, index) => ({
+    id: index + 1,
+    name: workout.name,
+    exercises: (workout.exercises || []).map((exercise: any, exIndex: number) => ({
+      exercise: buildExercise(exercise.name, exercise.videoUrl),
+      sets: exercise.sets,
+      reps: exercise.reps,
+      restTime: exercise.restTime,
+      notes: exercise.notes,
+      id: exIndex + 1,
+    })),
+    duration: 45,
+    calories: 0,
+    completed: false,
+    date: workout.date,
+  }))
 
   const handleExerciseClick = (workoutExercise: WorkoutExercise) => {
     setSelectedExercise(workoutExercise)
@@ -181,78 +198,88 @@ export function WorkoutList({ userId, currentWeight }: WorkoutListProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Lịch tập của bạn</h2>
-        <Button>Tạo bài tập mới với AI</Button>
       </div>
 
-      {workouts.map((workout) => (
-        <Card key={workout.id}>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <CardTitle className="flex items-center gap-2">
-                  {workout.name}
-                  {(workout.completed || completedWorkouts[workout.id]) && (
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  )}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">{workout.date}</p>
-              </div>
-              <Badge variant={workout.completed || completedWorkouts[workout.id] ? "default" : "secondary"}>
-                {workout.completed || completedWorkouts[workout.id] ? "Hoàn thành" : "Sắp tới"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Các bài tập:</p>
-                <div className="grid gap-2">
-                  {workout.exercises.map((workoutExercise, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      className="w-full justify-start h-auto py-3 px-4"
-                      onClick={() => handleExerciseClick(workoutExercise)}
-                    >
-                      <div className="flex items-center gap-3 w-full">
-                        <Dumbbell className="w-4 h-4 text-primary flex-shrink-0" />
-                        <div className="flex-1 text-left">
-                          <p className="font-medium">{workoutExercise.exercise.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {workoutExercise.sets} sets × {workoutExercise.reps} reps • Nghỉ {workoutExercise.restTime}s
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          Chi tiết
-                        </Badge>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  {workout.duration} phút
-                </div>
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4" />
-                  {workout.calories} cal
-                </div>
-              </div>
-              {!workout.completed && !completedWorkouts[workout.id] && (
-                <Button
-                  className="w-full"
-                  onClick={() => handleCompleteWorkout(workout.id)}
-                  disabled={savingWorkoutId === workout.id}
-                >
-                  {savingWorkoutId === workout.id ? "Đang lưu..." : "Hoàn thành"}
-                </Button>
-              )}
-            </div>
+      {loadingWorkouts ? (
+        <p className="text-sm text-muted-foreground">Đang tải lịch tập...</p>
+      ) : workouts.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Chưa có bài tập được giao.
           </CardContent>
         </Card>
-      ))}
+      ) : (
+        workouts.map((workout) => (
+          <Card key={workout.id}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2">
+                    {workout.name}
+                    {(workout.completed || completedWorkouts[workout.id]) && (
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    )}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">{workout.date}</p>
+                </div>
+                <Badge variant={workout.completed || completedWorkouts[workout.id] ? "default" : "secondary"}>
+                  {workout.completed || completedWorkouts[workout.id] ? "Hoàn thành" : "Sắp tới"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Các bài tập:</p>
+                  <div className="grid gap-2">
+                    {workout.exercises.map((workoutExercise, idx) => (
+                      <Button
+                        key={idx}
+                        variant="outline"
+                        className="w-full justify-start h-auto py-3 px-4"
+                        onClick={() => handleExerciseClick(workoutExercise)}
+                      >
+                        <div className="flex items-center gap-3 w-full">
+                          <Dumbbell className="w-4 h-4 text-primary flex-shrink-0" />
+                          <div className="flex-1 text-left">
+                            <p className="font-medium">{workoutExercise.exercise.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {workoutExercise.sets} sets × {workoutExercise.reps} reps • Nghỉ{" "}
+                              {workoutExercise.restTime}s
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            Chi tiết
+                          </Badge>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    {workout.duration} phút
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4" />
+                    {workout.calories} cal
+                  </div>
+                </div>
+                {!workout.completed && !completedWorkouts[workout.id] && (
+                  <Button
+                    className="w-full"
+                    onClick={() => handleCompleteWorkout(workout.id)}
+                    disabled={savingWorkoutId === workout.id}
+                  >
+                    {savingWorkoutId === workout.id ? "Đang lưu..." : "Hoàn thành"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
 
       <ExerciseDetailDialog
         workoutExercise={selectedExercise}

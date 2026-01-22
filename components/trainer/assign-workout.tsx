@@ -1,11 +1,10 @@
-"use client"
+﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -37,16 +36,10 @@ interface Exercise {
 }
 
 interface Client {
-  id: number
+  id: string
   name: string
   email: string
 }
-
-const mockClients: Client[] = [
-  { id: 1, name: "Nguyễn Văn A", email: "member@gym.com" },
-  { id: 2, name: "Trần Thị B", email: "member2@gym.com" },
-  { id: 3, name: "Lê Văn C", email: "member3@gym.com" },
-]
 
 const exerciseTemplates = [
   { name: "Squat", videoUrl: "https://www.youtube.com/embed/ultWZbUMPL8" },
@@ -60,11 +53,45 @@ const exerciseTemplates = [
 ]
 
 export function AssignWorkout() {
+  const [clients, setClients] = useState<Client[]>([])
   const [selectedClient, setSelectedClient] = useState<string>("")
   const [workoutName, setWorkoutName] = useState("")
   const [workoutDate, setWorkoutDate] = useState("")
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [loadingClients, setLoadingClients] = useState(true)
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const loadClients = async () => {
+      try {
+        const response = await fetch("/api/trainer/members")
+        if (!response.ok) return
+        const data = await response.json()
+        const members = Array.isArray(data?.members) ? data.members : []
+        if (isMounted) {
+          setClients(
+            members.map((member: any) => ({
+              id: member.id,
+              name: member.name,
+              email: member.email,
+            })),
+          )
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingClients(false)
+        }
+      }
+    }
+
+    loadClients()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const addExercise = () => {
     const newExercise: Exercise = {
@@ -74,39 +101,122 @@ export function AssignWorkout() {
       reps: 10,
       rest: 60,
     }
-    setExercises([...exercises, newExercise])
+    setExercises((prev) => [...prev, newExercise])
   }
 
   const updateExercise = (id: string, field: keyof Exercise, value: any) => {
-    setExercises(exercises.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)))
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)))
   }
 
   const removeExercise = (id: string) => {
-    setExercises(exercises.filter((ex) => ex.id !== id))
+    setExercises((prev) => prev.filter((ex) => ex.id !== id))
   }
 
-  const handleAssign = () => {
+  useEffect(() => {
+    if (isOpen && exercises.length === 0) {
+      addExercise()
+    }
+    if (!isOpen) {
+      setAssignError(null)
+      setIsSubmitting(false)
+    }
+  }, [isOpen, exercises.length])
+
+  const handleAssign = async () => {
+    if (isSubmitting) return
+
     if (!selectedClient || !workoutName || exercises.length === 0) {
+      setAssignError("Vui lòng chọn học viên, nhập tên bài tập và thêm ít nhất 1 bài tập.")
       toast({
         title: "Thiếu thông tin",
-        description: "Vui lòng điền đầy đủ thông tin bài tập",
+        description: "Vui lòng điền đầy đủ thông tin bài tập.",
         variant: "destructive",
       })
       return
     }
 
+    if (exercises.some((exercise) => !exercise.name.trim())) {
+      setAssignError("Vui lòng chọn tên bài tập cho tất cả mục.")
+      toast({
+        title: "Thiếu bài tập",
+        description: "Vui lòng chọn tên bài tập cho tất cả mục.",
+        variant: "destructive",
+      })
+      return
+    }
+    setAssignError(null)
+    setIsSubmitting(true)
+
+    const payload = {
+      userId: selectedClient,
+      name: workoutName.trim(),
+      date: workoutDate ? new Date(workoutDate).toISOString() : new Date().toISOString(),
+      exercises: exercises.map((exercise) => ({
+        name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        restTime: exercise.rest,
+        videoUrl: exercise.videoUrl,
+        notes: exercise.notes,
+      })),
+    }
+
+    let response: Response
+    try {
+      response = await fetch("/api/assigned-workouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+    } catch (error) {
+      setAssignError("Không thể kết nối máy chủ, vui lòng thử lại.")
+      toast({
+        title: "Giao bài tập thất bại",
+        description: "Không thể kết nối máy chủ, vui lòng thử lại.",
+        variant: "destructive",
+      })
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!response.ok) {
+      let errorMessage = "Không thể lưu bài tập, vui lòng thử lại."
+      try {
+        const data = await response.json()
+        if (typeof data?.error === "string" && data.error.trim()) {
+          errorMessage = data.error
+        }
+      } catch (error) {
+        // Ignore JSON parse errors.
+      }
+      setAssignError(errorMessage)
+      toast({
+        title: "Giao bài tập thất bại",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      setIsSubmitting(false)
+      return
+    }
+
     toast({
       title: "Giao bài tập thành công!",
-      description: `Đã giao bài tập "${workoutName}" cho học viên`,
+      description: `Đã giao bài tập "${workoutName}" cho học viên.`,
     })
 
-    // Reset form
     setSelectedClient("")
     setWorkoutName("")
     setWorkoutDate("")
     setExercises([])
     setIsOpen(false)
+    setIsSubmitting(false)
   }
+
+  const canSubmit =
+    selectedClient &&
+    workoutName.trim().length > 0 &&
+    exercises.length > 0 &&
+    exercises.every((exercise) => exercise.name.trim().length > 0)
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -126,14 +236,14 @@ export function AssignWorkout() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Chọn học viên</Label>
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <Select value={selectedClient} onValueChange={setSelectedClient} disabled={loadingClients}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn học viên" />
+                  <SelectValue placeholder={loadingClients ? "Đang tải..." : "Chọn học viên"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockClients.map((client) => (
-                    <SelectItem key={client.id} value={client.id.toString()}>
-                      {client.name}
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} ({client.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -278,13 +388,19 @@ export function AssignWorkout() {
           </div>
 
           <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={handleAssign} className="flex-1">
-              Giao bài tập
+            <Button onClick={handleAssign} className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? "Đang giao..." : "Giao bài tập"}
             </Button>
             <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1">
               Hủy
             </Button>
           </div>
+          {!canSubmit ? (
+            <p className="text-sm text-muted-foreground">
+              Vui lòng chọn học viên, nhập tên và chọn bài tập trước khi giao.
+            </p>
+          ) : null}
+          {assignError ? <p className="text-sm text-red-600">{assignError}</p> : null}
         </div>
       </DialogContent>
     </Dialog>

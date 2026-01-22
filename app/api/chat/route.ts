@@ -42,6 +42,15 @@ export async function GET(request: Request) {
       .sort({ createdAt: 1 })
       .toArray()
 
+    await db.collection<ChatMessageRecord>("chat_messages").updateMany(
+      {
+        fromId: otherObjectId,
+        toId: currentObjectId,
+        read: false,
+      },
+      { $set: { read: true } },
+    )
+
     return NextResponse.json({
       messages: messages.map((msg) => ({
         id: msg._id?.toString() ?? "",
