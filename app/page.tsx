@@ -35,10 +35,6 @@ export default function LandingPage() {
         <div className="container px-4 sm:px-8 py-20 mx-auto md:py-32">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <Zap className="w-4 h-4" />
-                Powered by AI
-              </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-6xl text-balance">
                 GYMORA - Quản lý phòng gym thông minh với AI
               </h1>
