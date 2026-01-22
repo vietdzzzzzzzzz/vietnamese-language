@@ -1,43 +1,116 @@
-export async function POST(req: Request) {
-  const { userData } = await req.json()
+import { generateText } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 
-  // Simulate processing delay
-  await new Promise((resolve) => setTimeout(resolve, 1500))
+export const runtime = "nodejs"
 
-  // Calculate progress metrics
-  const weightLoss = (userData.startWeight || 75) - (userData.currentWeight || 72)
-  const progressPercent = ((weightLoss / ((userData.startWeight || 75) - (userData.targetWeight || 68))) * 100).toFixed(
-    0,
-  )
-  const strengthGain = ((userData.currentSquat || 97) / (userData.startSquat || 80) - 1) * 100
+type UserData = {
+  totalWorkouts?: number
+  startWeight?: number
+  currentWeight?: number
+  targetWeight?: number
+  attendanceCount?: number
+  durationWeeks?: number
+}
 
-  const analysis = {
-    summary: `Sau ${userData.duration || "4 tuần"} tập luyện, bạn đã giảm được ${weightLoss}kg (đạt ${progressPercent}% mục tiêu) và tăng sức mạnh squat ${strengthGain.toFixed(0)}%. Tỷ lệ tham gia lớp ${userData.attendance || 85}% cho thấy sự cam kết tốt của bạn.`,
+const systemPrompt = `
+Bạn là chuyên gia phân tích tiến độ tập luyện.
+Hãy trả về JSON thuần (không bọc markdown) với các key:
+- summary: string
+- strengths: string[]
+- improvements: string[]
+- recommendations: string[]
+- motivationalMessage: string
+Trả lời tiếng Việt, thực tế, ngắn gọn, không phóng đại.
+`
 
+const buildFallback = (userData: UserData) => {
+  const startWeight = userData.startWeight ?? 0
+  const currentWeight = userData.currentWeight ?? 0
+  const targetWeight = userData.targetWeight ?? 0
+  const durationWeeks = userData.durationWeeks ?? 4
+  const attendanceCount = userData.attendanceCount ?? 0
+  const totalWorkouts = userData.totalWorkouts ?? 0
+
+  const weightLoss = startWeight && currentWeight ? startWeight - currentWeight : 0
+  const progressPercent =
+    startWeight && targetWeight && startWeight !== targetWeight
+      ? Math.max(0, Math.min(100, (weightLoss / (startWeight - targetWeight)) * 100))
+      : 0
+
+  return {
+    summary: `Sau ${durationWeeks} tuần, bạn đã hoàn thành ${totalWorkouts} buổi tập và check-in ${attendanceCount} buổi gần đây. Tiến độ giảm cân đạt khoảng ${Math.round(
+      progressPercent,
+    )}% mục tiêu.`,
     strengths: [
-      `Tỷ lệ tham gia ${userData.attendance || 85}% rất ấn tượng, cho thấy sự kiên trì`,
-      `Sức mạnh squat tăng ${strengthGain.toFixed(0)}% - tiến bộ vượt mức trung bình`,
-      `Giảm cân ${weightLoss}kg một cách an toàn và bền vững`,
-      "Duy trì kỷ luật tập luyện đều đặn",
+      "Duy trì lịch tập khá đều, cho thấy sự kỷ luật tốt.",
+      "Có tiến bộ rõ về thói quen tập luyện.",
     ],
-
     improvements: [
-      "Có thể tăng cường độ tập cardio để đốt mỡ nhanh hơn",
-      "Nên theo dõi lượng protein hàng ngày (1.6-2g/kg cơ thể)",
-      "Có thể thêm 1 buổi tập chân nữa trong tuần",
-      "Cân nhắc bổ sung vitamin và khoáng chất",
+      "Tăng thêm độ ổn định lịch tập để giữ tiến độ bền vững.",
+      "Theo dõi dinh dưỡng và nghỉ ngơi kỹ hơn để tối ưu phục hồi.",
     ],
-
     recommendations: [
-      `Để đạt mục tiêu ${userData.targetWeight || 68}kg, hãy tiếp tục với tốc độ giảm 0.5kg/tuần`,
-      "Tăng trọng lượng squat lên 5% mỗi 2 tuần nếu kỹ thuật tốt",
-      "Thêm 15-20 phút HIIT cardio vào 2-3 buổi/tuần",
-      "Ưu tiên ngủ 7-9 giờ mỗi đêm để cơ bắp hồi phục tốt",
-      "Uống 2.5-3L nước mỗi ngày",
+      "Duy trì cường độ ổn định, ưu tiên kỹ thuật đúng.",
+      "Thêm 1-2 buổi cardio nhẹ mỗi tuần nếu mục tiêu là giảm mỡ.",
     ],
-
-    motivationalMessage: `Xuất sắc! Bạn đang trên đà rất tốt với ${progressPercent}% tiến độ đã hoàn thành. Sức mạnh tăng ${strengthGain.toFixed(0)}% chứng tỏ phương pháp tập của bạn đang hiệu quả. Hãy tiếp tục duy trì động lực - mục tiêu ${userData.targetWeight || 68}kg đang ở rất gần! 💪`,
+    motivationalMessage: "Bạn đang đi đúng hướng. Cứ đều đặn từng tuần, mục tiêu sẽ tới gần!",
   }
+}
 
-  return Response.json({ analysis })
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => null)
+    const userData: UserData = body?.userData ?? {}
+
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "Missing OPENAI_API_KEY" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const openai = createOpenAI({ apiKey })
+    const model = openai("gpt-4o-mini")
+
+    const prompt = `Dữ liệu người dùng (JSON): ${JSON.stringify(userData)}`
+
+    const { text } = await generateText({
+      model,
+      system: systemPrompt.trim(),
+      prompt,
+      temperature: 0.4,
+      maxOutputTokens: 800,
+    })
+
+    let analysis: any = null
+    try {
+      analysis = JSON.parse(text)
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/)
+      if (match) {
+        analysis = JSON.parse(match[0])
+      }
+    }
+
+    if (
+      !analysis ||
+      typeof analysis.summary !== "string" ||
+      !Array.isArray(analysis.strengths) ||
+      !Array.isArray(analysis.improvements) ||
+      !Array.isArray(analysis.recommendations)
+    ) {
+      analysis = buildFallback(userData)
+    }
+
+    return new Response(JSON.stringify({ analysis }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message ?? "Server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
 }

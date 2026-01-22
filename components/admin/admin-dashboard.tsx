@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,6 +13,8 @@ import { RevenueAnalytics } from "./revenue-analytics"
 import { GymSettings } from "./gym-settings"
 import { ExerciseManagement } from "./exercise-management"
 import { NotificationCenter } from "@/components/shared/notification-center"
+import { BackButton } from "@/components/shared/back-button"
+import { TetBanner } from "@/components/shared/tet-banner"
 
 export function AdminDashboard() {
   const router = useRouter()
@@ -57,15 +60,18 @@ export function AdminDashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card">
-        <div className="container px-4 py-4 mx-auto">
+        <div className="container px-4 sm:px-8 py-4 mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+            <BackButton fallbackHref="/admin" />
+            <Link href="/admin" className="flex items-center gap-4">
               <Dumbbell className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">GYMORA Admin</h1>
+                <h1 className="text-xl font-bold sm:text-2xl">GYMORA Admin</h1>
                 <p className="text-sm text-muted-foreground">Quản lý hệ thống</p>
               </div>
-            </div>
+            </Link>
+          </div>
             <div className="flex items-center gap-4">
               <NotificationCenter />
               <Avatar>
@@ -80,7 +86,9 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <div className="container px-4 py-8 mx-auto">
+      <div className="container px-4 sm:px-8 py-8 mx-auto">
+        <TetBanner />
+
         {/* Stats Overview */}
         <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -89,7 +97,7 @@ export function AdminDashboard() {
               <Users className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">247</div>
+              <div className="text-xl font-bold sm:text-2xl">247</div>
               <p className="text-xs text-muted-foreground">+18 tháng này</p>
             </CardContent>
           </Card>
@@ -100,7 +108,7 @@ export function AdminDashboard() {
               <DollarSign className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">142M VNĐ</div>
+              <div className="text-xl font-bold sm:text-2xl">142M VNĐ</div>
               <p className="text-xs text-green-600">+12% so với tháng trước</p>
             </CardContent>
           </Card>
@@ -111,7 +119,7 @@ export function AdminDashboard() {
               <Activity className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">78%</div>
+              <div className="text-xl font-bold sm:text-2xl">78%</div>
               <p className="text-xs text-muted-foreground">Trung bình tuần này</p>
             </CardContent>
           </Card>
@@ -122,7 +130,7 @@ export function AdminDashboard() {
               <TrendingUp className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+24%</div>
+              <div className="text-xl font-bold sm:text-2xl">+24%</div>
               <p className="text-xs text-muted-foreground">So với quý trước</p>
             </CardContent>
           </Card>

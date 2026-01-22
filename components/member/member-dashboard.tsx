@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -44,7 +45,8 @@ import { AttendanceHistory } from "./attendance-history"
 import { NutritionTracker } from "./nutrition-tracker"
 import { TrainerChat } from "./trainer-chat"
 import { NotificationCenter } from "@/components/shared/notification-center"
-import { SpringGifs } from "@/components/shared/spring-gifs"
+import { BackButton } from "@/components/shared/back-button"
+import { TetBanner } from "@/components/shared/tet-banner"
 import type { Package as PackageType } from "@/types/package"
 
 export function MemberDashboard() {
@@ -300,15 +302,18 @@ export function MemberDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container px-4 py-4 mx-auto">
+        <div className="container px-4 sm:px-8 py-4 mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+            <BackButton fallbackHref="/member" />
+            <Link href="/member" className="flex items-center gap-4">
               <Dumbbell className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">GYMORA Member</h1>
+                <h1 className="text-xl font-bold sm:text-2xl">GYMORA Member</h1>
                 <p className="text-sm text-muted-foreground">Chào {user.name}!</p>
               </div>
-            </div>
+            </Link>
+          </div>
             <div className="flex items-center gap-4">
               <NotificationCenter />
               <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
@@ -376,8 +381,8 @@ export function MemberDashboard() {
         </div>
       </header>
 
-      <div className="container px-4 py-8 mx-auto">
-        <SpringGifs />
+      <div className="container px-4 sm:px-8 py-8 mx-auto">
+        <TetBanner />
 
         <div className="mb-8">
           <CheckInCard userId={user.id} onCheckIn={handleCheckIn} />
@@ -392,7 +397,7 @@ export function MemberDashboard() {
             <CardContent>
               {currentPackage ? (
                 <>
-                  <div className="text-lg font-bold">{currentPackage.name}</div>
+                  <div className="text-base font-bold sm:text-lg">{currentPackage.name}</div>
                   {currentPackage.type === "session" && (
                     <p className="text-xs text-muted-foreground">
                       Còn {remainingSessions}/{currentPackage.totalSessions} buổi
@@ -420,7 +425,7 @@ export function MemberDashboard() {
               <Flame className="w-4 h-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold flex items-center gap-2">
+              <div className="text-xl font-bold flex items-center gap-2 sm:text-2xl">
                 {currentStreak}
                 <Flame className="w-6 h-6 text-orange-500" />
               </div>
@@ -441,7 +446,7 @@ export function MemberDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{currentWeight ? `${currentWeight} kg` : "N/A"}</div>
+                  <div className="text-xl font-bold sm:text-2xl">{currentWeight ? `${currentWeight} kg` : "N/A"}</div>
                   <p className="text-xs text-muted-foreground">BMI: {bmi}</p>
                   <p className="text-xs text-muted-foreground mt-1">Nhấn để cập nhật</p>
                 </CardContent>
@@ -493,7 +498,7 @@ export function MemberDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{targetWeight ? `${targetWeight} kg` : "N/A"}</div>
+                  <div className="text-xl font-bold sm:text-2xl">{targetWeight ? `${targetWeight} kg` : "N/A"}</div>
                   <Progress value={progress} className="mt-2" />
                   <p className="text-xs text-muted-foreground mt-1">Nhấn để chỉnh sửa</p>
                 </CardContent>
@@ -547,7 +552,7 @@ export function MemberDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{height ? `${height} cm` : "N/A"}</div>
+                  <div className="text-xl font-bold sm:text-2xl">{height ? `${height} cm` : "N/A"}</div>
                   <p className="text-xs text-muted-foreground mt-1">Nhấn để cập nhật</p>
                 </CardContent>
               </Card>
@@ -636,7 +641,7 @@ export function MemberDashboard() {
           </TabsContent>
 
           <TabsContent value="ai-analysis">
-            <AIProgressAnalysis />
+            <AIProgressAnalysis userId={user.id} currentWeight={currentWeight} targetWeight={targetWeight} />
           </TabsContent>
 
           <TabsContent value="chat">

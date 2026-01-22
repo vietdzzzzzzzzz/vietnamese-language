@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Dumbbell, BookOpen, Video } from "lucide-react"
+import { BackButton } from "@/components/shared/back-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 const exercises = [
@@ -134,18 +136,21 @@ export function ExerciseLibrary() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container px-4 py-4 mx-auto">
+        <div className="container px-4 sm:px-8 py-4 mx-auto">
           <div className="flex items-center gap-4">
+            <BackButton fallbackHref="/" />
+            <Link href="/" className="flex items-center gap-4">
             <Dumbbell className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold">Thư viện bài tập</h1>
               <p className="text-sm text-muted-foreground">Hướng dẫn chi tiết các động tác tập luyện</p>
             </div>
+          </Link>
           </div>
         </div>
       </header>
 
-      <div className="container px-4 py-8 mx-auto">
+      <div className="container px-4 sm:px-8 py-8 mx-auto">
         <div className="flex flex-col gap-6 mb-8 md:flex-row md:items-center md:justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />

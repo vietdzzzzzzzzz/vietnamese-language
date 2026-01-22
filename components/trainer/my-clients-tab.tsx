@@ -203,7 +203,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Danh sách học viên</h2>
+        <h2 className="text-xl font-bold sm:text-2xl">Danh sách học viên</h2>
         <div className="flex items-center gap-4">
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -295,7 +295,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Tiến độ cân nặng</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">
+                        <span className="text-xl font-bold sm:text-2xl">
                           {client.currentWeight ? `${client.currentWeight} kg` : "N/A"}
                         </span>
                         <div
@@ -315,7 +315,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Tham gia</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">{client.attendance}%</span>
+                        <span className="text-xl font-bold sm:text-2xl">{client.attendance}%</span>
                       </div>
                       <Progress value={client.attendance} className="mt-2" />
                       <p className="text-xs text-muted-foreground">Tỷ lệ đi tập</p>
@@ -323,7 +323,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
 
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Tổng buổi tập</p>
-                      <p className="text-2xl font-bold">{client.totalWorkouts}</p>
+                      <p className="text-xl font-bold sm:text-2xl">{client.totalWorkouts}</p>
                       <p className="text-xs text-muted-foreground">buổi hoàn thành</p>
                     </div>
 
@@ -341,7 +341,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                       </div>
                       <div className="flex items-center gap-2">
                         <Flame className="w-5 h-5 text-orange-500" />
-                        <span className="text-2xl font-bold">{client.streak}</span>
+                        <span className="text-xl font-bold sm:text-2xl">{client.streak}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">ngày liên tiếp</p>
                     </div>

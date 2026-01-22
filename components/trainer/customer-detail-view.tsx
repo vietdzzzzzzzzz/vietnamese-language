@@ -207,7 +207,7 @@ export function CustomerDetailView({
               <AvatarFallback className="text-lg">{activeCustomer.name[0]}</AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-2xl font-bold">{activeCustomer.name}</h2>
+              <h2 className="text-xl font-bold sm:text-2xl">{activeCustomer.name}</h2>
               <p className="text-sm text-muted-foreground font-normal">Hồ sơ học viên</p>
             </div>
           </DialogTitle>
@@ -226,7 +226,7 @@ export function CustomerDetailView({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{activeCustomer.currentWeight || "N/A"} kg</div>
+                <div className="text-xl font-bold sm:text-2xl">{activeCustomer.currentWeight || "N/A"} kg</div>
                 <p className="text-xs text-muted-foreground">Mục tiêu: {activeCustomer.targetWeight || "N/A"} kg</p>
               </CardContent>
             </Card>
@@ -239,7 +239,7 @@ export function CustomerDetailView({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{getBMI()}</div>
+                <div className="text-xl font-bold sm:text-2xl">{getBMI()}</div>
                 <p className="text-xs text-muted-foreground">Chỉ số cơ thể</p>
               </CardContent>
             </Card>
@@ -252,7 +252,7 @@ export function CustomerDetailView({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-xl font-bold sm:text-2xl">
                   {attendanceCount}
                   {sessionTotal ? `/${sessionTotal}` : ""}
                 </div>
@@ -270,7 +270,7 @@ export function CustomerDetailView({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{activeCustomer.streak || 0} ngày</div>
+                <div className="text-xl font-bold sm:text-2xl">{activeCustomer.streak || 0} ngày</div>
                 <p className="text-xs text-muted-foreground">Chuỗi tập luyện</p>
               </CardContent>
             </Card>
@@ -359,7 +359,7 @@ export function CustomerDetailView({
                       </div>
                       {activeCustomer.package.type === "session" && activeCustomer.package.totalSessions && (
                         <div className="text-right">
-                          <p className="text-2xl font-bold">
+                          <p className="text-xl font-bold sm:text-2xl">
                             {activeCustomer.package.totalSessions - sessionUsed}
                           </p>
                           <p className="text-xs text-muted-foreground">buổi còn lại</p>
