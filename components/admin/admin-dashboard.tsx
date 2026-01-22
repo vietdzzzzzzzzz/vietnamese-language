@@ -18,21 +18,36 @@ export function AdminDashboard() {
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    const userData = sessionStorage.getItem("user")
-    if (!userData) {
-      router.push("/login")
-      return
+    let isMounted = true
+
+    const loadUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me")
+        if (!response.ok) {
+          router.push("/login")
+          return
+        }
+        const data = await response.json()
+        if (data?.user?.role !== "admin") {
+          router.push("/")
+          return
+        }
+        if (isMounted) {
+          setUser(data.user)
+        }
+      } catch (error) {
+        router.push("/login")
+      }
     }
-    const parsedUser = JSON.parse(userData)
-    if (parsedUser.role !== "admin") {
-      router.push("/")
-      return
+
+    loadUser()
+    return () => {
+      isMounted = false
     }
-    setUser(parsedUser)
   }, [router])
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("user")
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" })
     router.push("/")
   }
 

@@ -5,23 +5,53 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Clock, Calendar } from "lucide-react"
-import type { UserAttendance } from "@/types/attendance"
+
+type AttendanceRecord = {
+  id: string
+  checkInTime: string
+  checkOutTime?: string
+}
 
 interface AttendanceHistoryProps {
-  userId: number
+  userId: string
 }
 
 export function AttendanceHistory({ userId }: AttendanceHistoryProps) {
-  const [attendance, setAttendance] = useState<UserAttendance | null>(null)
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const savedAttendance = localStorage.getItem(`attendance_${userId}`)
-    if (savedAttendance) {
-      setAttendance(JSON.parse(savedAttendance))
+    const loadAttendance = async () => {
+      try {
+        const response = await fetch(`/api/attendance?userId=${userId}`)
+        if (!response.ok) return
+        const data = await response.json()
+        const attendanceRecords = Array.isArray(data?.attendances) ? data.attendances : []
+        setRecords(attendanceRecords)
+      } catch (error) {
+        // Ignore load errors for now
+      } finally {
+        setLoading(false)
+      }
     }
+
+    loadAttendance()
   }, [userId])
 
-  if (!attendance || attendance.history.length === 0) {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Lịch sử điểm danh</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-8">Đang tải lịch sử điểm danh...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (records.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -58,12 +88,12 @@ export function AttendanceHistory({ userId }: AttendanceHistoryProps) {
     <Card>
       <CardHeader>
         <CardTitle>Lịch sử điểm danh</CardTitle>
-        <p className="text-sm text-muted-foreground">{attendance.history.length} buổi tập đã hoàn thành</p>
+        <p className="text-sm text-muted-foreground">{records.length} buổi tập đã hoàn thành</p>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-3">
-            {attendance.history.map((record, index) => {
+            {records.map((record, index) => {
               const duration = calculateDuration(record.checkInTime, record.checkOutTime)
               return (
                 <div
@@ -71,12 +101,12 @@ export function AttendanceHistory({ userId }: AttendanceHistoryProps) {
                   className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                 >
                   <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="font-bold text-primary">#{attendance.history.length - index}</span>
+                    <span className="font-bold text-primary">#{records.length - index}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">{formatDate(record.date)}</span>
+                      <span className="font-medium">{formatDate(record.checkInTime)}</span>
                       {index === 0 && <Badge variant="outline">Mới nhất</Badge>}
                     </div>
                     <div className="space-y-1 text-sm text-muted-foreground">

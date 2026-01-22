@@ -14,44 +14,41 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
-    // Check for default admin account
-    if (email === "admin123" && password === "12345") {
-      const adminData = {
-        email: "admin123",
-        role: "admin",
-        name: "Administrator",
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        setError(data?.error || "Login failed.")
+        return
       }
-      sessionStorage.setItem("user", JSON.stringify(adminData))
-      setTimeout(() => {
+
+      const data = await response.json()
+      const userData = data?.user
+
+      if (userData?.role === "admin") {
         router.push("/admin")
-        setLoading(false)
-      }, 1000)
-      return
-    }
-
-    // Mock authentication - redirect based on email domain
-    setTimeout(() => {
-      // Store user data in sessionStorage (temporary until database is added)
-      const userData = {
-        email,
-        role: email.includes("trainer") ? "trainer" : "member",
-        name: email.split("@")[0],
-      }
-      sessionStorage.setItem("user", JSON.stringify(userData))
-
-      // Redirect based on role
-      if (userData.role === "trainer") {
+      } else if (userData?.role === "trainer") {
         router.push("/trainer")
       } else {
         router.push("/member")
       }
+    } catch (err) {
+      setError("Login failed.")
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -68,10 +65,7 @@ export function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Demo: dùng &quot;member@gym.com&quot; hoặc &quot;trainer@gym.com&quot;<br />
-              Admin: &quot;admin123&quot; / &quot;12345&quot;
-            </p>
+            <p className="text-xs text-muted-foreground">Use your registered email and password.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Mật khẩu</Label>
@@ -87,6 +81,7 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </form>
       </CardContent>
     </Card>

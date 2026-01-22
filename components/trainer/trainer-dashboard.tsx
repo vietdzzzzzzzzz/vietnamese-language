@@ -12,6 +12,7 @@ import { WorkoutManagement } from "./workout-management"
 import { ClientMessaging } from "./client-messaging"
 import { ExerciseManagement } from "../admin/exercise-management"
 import { NotificationCenter } from "@/components/shared/notification-center"
+import { SpringGifs } from "@/components/shared/spring-gifs"
 import { CustomerDetailView } from "./customer-detail-view"
 import type { CustomerProfile } from "@/types/trainer"
 
@@ -22,21 +23,36 @@ export function TrainerDashboard() {
   const [showCustomerDetail, setShowCustomerDetail] = useState(false)
 
   useEffect(() => {
-    const userData = sessionStorage.getItem("user")
-    if (!userData) {
-      router.push("/login")
-      return
+    let isMounted = true
+
+    const loadUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me")
+        if (!response.ok) {
+          router.push("/login")
+          return
+        }
+        const data = await response.json()
+        if (data?.user?.role !== "trainer") {
+          router.push("/")
+          return
+        }
+        if (isMounted) {
+          setUser(data.user)
+        }
+      } catch (error) {
+        router.push("/login")
+      }
     }
-    const parsedUser = JSON.parse(userData)
-    if (parsedUser.role !== "trainer") {
-      router.push("/")
-      return
+
+    loadUser()
+    return () => {
+      isMounted = false
     }
-    setUser(parsedUser)
   }, [router])
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("user")
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" })
     router.push("/")
   }
 
@@ -70,6 +86,8 @@ export function TrainerDashboard() {
       </header>
 
       <div className="container px-4 py-8 mx-auto">
+        <SpringGifs />
+
         {/* Stats Overview */}
         <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
           <Card>

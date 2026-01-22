@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
@@ -25,102 +25,132 @@ interface MyClientsTabProps {
   onCustomerSelect: (customer: CustomerProfile) => void
 }
 
-const initialClients = [
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "member@gym.com",
-    goal: "Giảm cân",
-    startWeight: 75,
-    currentWeight: 72,
-    targetWeight: 68,
-    joinDate: "2025-01-15",
-    lastWorkout: "2025-01-28",
-    attendance: 85,
-    status: "active",
-    totalWorkouts: 24,
-    streak: 7,
-    package: {
-      id: "session-24",
-      name: "Gói Tiêu chuẩn",
-      type: "session" as const,
-      totalSessions: 24,
-      usedSessions: 18,
-      price: 2200000,
-      description: "",
-      features: [],
-    },
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "member2@gym.com",
-    goal: "Tăng cơ",
-    startWeight: 55,
-    currentWeight: 57,
-    targetWeight: 60,
-    joinDate: "2024-12-20",
-    lastWorkout: "2025-01-27",
-    attendance: 92,
-    status: "active",
-    totalWorkouts: 38,
-    streak: 12,
-    package: {
-      id: "duration-3",
-      name: "Gói 3 tháng",
-      type: "duration" as const,
-      durationMonths: 3,
-      startDate: "2024-12-20",
-      price: 3900000,
-      description: "",
-      features: [],
-    },
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "member3@gym.com",
-    goal: "Tăng sức mạnh",
-    startWeight: 70,
-    currentWeight: 71,
-    targetWeight: 75,
-    joinDate: "2025-01-10",
-    lastWorkout: "2025-01-25",
-    attendance: 70,
-    status: "active",
-    totalWorkouts: 18,
-    streak: 3,
-    package: {
-      id: "session-12",
-      name: "Gói Cơ bản",
-      type: "session" as const,
-      totalSessions: 12,
-      usedSessions: 8,
-      price: 1200000,
-      description: "",
-      features: [],
-    },
-  },
-]
+type ClientPackage =
+  | {
+      id?: string
+      name: string
+      type: "session"
+      totalSessions?: number
+      usedSessions?: number
+      price?: number
+      description?: string
+      features?: string[]
+    }
+  | {
+      id?: string
+      name: string
+      type: "duration"
+      durationMonths?: number
+      startDate?: string
+      price?: number
+      description?: string
+      features?: string[]
+    }
+
+type ClientItem = {
+  id: string
+  name: string
+  email: string
+  avatar?: string
+  goal: string
+  startWeight: number
+  currentWeight: number
+  targetWeight: number
+  height?: number
+  joinDate: string
+  lastWorkout?: string
+  attendance: number
+  status: "active" | "inactive"
+  totalWorkouts: number
+  streak: number
+  package?: ClientPackage
+}
 
 export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [clients, setClients] = useState(initialClients)
+  const [clients, setClients] = useState<ClientItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [editingClient, setEditingClient] = useState<any>(null)
   const [streakDialogOpen, setStreakDialogOpen] = useState(false)
   const [tempStreak, setTempStreak] = useState("")
   const [packageDialogOpen, setPackageDialogOpen] = useState(false)
   const [tempUsedSessions, setTempUsedSessions] = useState("")
 
+  useEffect(() => {
+    let isMounted = true
+
+    const loadClients = async () => {
+      try {
+        const response = await fetch("/api/trainer/members")
+        if (!response.ok) {
+          setError("Không thể tải danh sách học viên.")
+          return
+        }
+
+        const data = await response.json()
+        const members = Array.isArray(data?.members) ? data.members : []
+
+        if (isMounted) {
+          setClients(
+            members.map((member: any) => {
+              const currentWeight = Number(member.currentWeight || 0)
+              const targetWeight = Number(member.targetWeight || 0)
+              const totalAttendance = Number(member.totalAttendance || 0)
+              const attendancePercent = Math.min(100, Math.round((totalAttendance / 30) * 100))
+
+              return {
+                id: member.id,
+                name: member.name,
+                email: member.email,
+                avatar: member.avatar,
+                goal: "Mục tiêu",
+                startWeight: currentWeight || targetWeight || 0,
+                currentWeight,
+                targetWeight,
+                height: Number(member.height || 0),
+                joinDate: member.createdAt || new Date().toISOString(),
+                attendance: attendancePercent,
+                status: "active",
+                totalWorkouts: Number(member.totalWorkouts || 0),
+                streak: Number(member.streak || 0),
+              }
+            }),
+          )
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError("Không thể tải danh sách học viên.")
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadClients()
+    return () => {
+      isMounted = false
+    }
+  }, [trainerId])
+
   const filteredClients = clients.filter((client) => client.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  const getProgressPercent = (client: any) => {
+  const getProgressPercent = (client: ClientItem) => {
     const totalChange = Math.abs(client.targetWeight - client.startWeight)
     const currentChange = Math.abs(client.currentWeight - client.startWeight)
+    if (!totalChange) return 0
     return Math.min((currentChange / totalChange) * 100, 100)
   }
 
-  const handleEditStreak = (client: any) => {
+  const getBMI = (client: ClientItem) => {
+    if (!client.currentWeight || !client.height) return "N/A"
+    const heightInMeters = client.height / 100
+    return (client.currentWeight / (heightInMeters * heightInMeters)).toFixed(1)
+  }
+
+  const handleEditStreak = (client: ClientItem) => {
     setEditingClient(client)
     setTempStreak(client.streak.toString())
     setStreakDialogOpen(true)
@@ -137,7 +167,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
     setEditingClient(null)
   }
 
-  const handleEditPackage = (client: any) => {
+  const handleEditPackage = (client: ClientItem) => {
     setEditingClient(client)
     if (client.package?.type === "session") {
       setTempUsedSessions((client.package.usedSessions || 0).toString())
@@ -188,6 +218,12 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
         </div>
       </div>
 
+      {loading && <p className="text-sm text-muted-foreground">Đang tải danh sách học viên...</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && !error && filteredClients.length === 0 && (
+        <p className="text-sm text-muted-foreground">Chưa có học viên nào.</p>
+      )}
+
       <div className="grid gap-6">
         {filteredClients.map((client) => {
           const weightDiff = client.currentWeight - client.startWeight
@@ -203,6 +239,7 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-12 h-12">
+                      {client.avatar ? <AvatarImage src={client.avatar} alt={client.name} /> : null}
                       <AvatarFallback>{client.name[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -258,16 +295,21 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Tiến độ cân nặng</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">{client.currentWeight} kg</span>
+                        <span className="text-2xl font-bold">
+                          {client.currentWeight ? `${client.currentWeight} kg` : "N/A"}
+                        </span>
                         <div
                           className={`flex items-center gap-1 text-sm ${weightDiff > 0 ? "text-red-600" : "text-green-600"}`}
                         >
                           {weightDiff > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                          {Math.abs(weightDiff)} kg
+                          {client.currentWeight ? `${Math.abs(weightDiff)} kg` : "0 kg"}
                         </div>
                       </div>
                       <Progress value={progress} className="mt-2" />
-                      <p className="text-xs text-muted-foreground">Mục tiêu: {client.targetWeight} kg</p>
+                      <p className="text-xs text-muted-foreground">
+                        Mục tiêu: {client.targetWeight ? `${client.targetWeight} kg` : "N/A"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">BMI: {getBMI(client)}</p>
                     </div>
 
                     <div className="space-y-1">
@@ -314,25 +356,34 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Nhắn tin
                     </Button>
-                    <Button onClick={() => onCustomerSelect({
-                      id: client.id.toString(),
-                      name: client.name,
-                      email: client.email,
-                      currentWeight: client.currentWeight,
-                      targetWeight: client.targetWeight,
-                      joinDate: new Date(client.joinDate),
-                      status: client.status as "active" | "inactive",
-                      package: client.package ? {
-                        name: client.package.name,
-                        type: client.package.type,
-                        totalSessions: client.package.type === "session" ? client.package.totalSessions : undefined,
-                        usedSessions: client.package.type === "session" ? (client.package.usedSessions || 0) : 0,
-                        startDate: new Date(client.package.type === "session" ? client.joinDate : client.package.startDate || client.joinDate),
-                        status: "active",
-                      } : undefined,
-                      streak: client.streak,
-                      totalWorkouts: client.totalWorkouts,
-                    })}>
+                    <Button
+                      onClick={() =>
+                        onCustomerSelect({
+                          id: client.id.toString(),
+                          name: client.name,
+                          email: client.email,
+                          avatar: client.avatar,
+                          currentWeight: client.currentWeight,
+                          targetWeight: client.targetWeight,
+                          joinDate: new Date(client.joinDate),
+                          status: client.status as "active" | "inactive",
+                          package: client.package
+                            ? {
+                                name: client.package.name,
+                                type: client.package.type,
+                                totalSessions:
+                                  client.package.type === "session" ? client.package.totalSessions : undefined,
+                                usedSessions:
+                                  client.package.type === "session" ? (client.package.usedSessions || 0) : 0,
+                                startDate: new Date(client.package.type === "session" ? client.joinDate : client.joinDate),
+                                status: "active",
+                              }
+                            : undefined,
+                          streak: client.streak,
+                          totalWorkouts: client.totalWorkouts,
+                        })
+                      }
+                    >
                       <Eye className="w-4 h-4 mr-2" />
                       Xem chi tiết
                     </Button>
@@ -344,7 +395,6 @@ export function MyClientsTab({ trainerId, onCustomerSelect }: MyClientsTabProps)
         })}
       </div>
 
-      {/* Streak Edit Dialog */}
       <Dialog open={streakDialogOpen} onOpenChange={setStreakDialogOpen}>
         <DialogContent>
           <DialogHeader>

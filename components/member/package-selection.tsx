@@ -92,27 +92,55 @@ const availablePackages: Package[] = [
 interface PackageSelectionProps {
   currentPackage?: Package
   onSelectPackage?: (pkg: Package) => void
+  userId?: string
 }
 
-export function PackageSelection({ currentPackage, onSelectPackage }: PackageSelectionProps) {
+export function PackageSelection({ currentPackage, onSelectPackage, userId }: PackageSelectionProps) {
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const bankAccount = "10204666"
+  const bankName = "VietinBank"
+  const accountName = "LO QUOC VIET"
+  const qrDescription = selectedPackage ? `GYMORA-${selectedPackage.id}` : "GYMORA"
+  const qrAmount = selectedPackage?.price || 0
+  const qrSrc = `https://img.vietqr.io/image/ICB-${bankAccount}-compact2.png?amount=${qrAmount}&addInfo=${encodeURIComponent(qrDescription)}&accountName=${encodeURIComponent(accountName)}`
 
   const handleSelectPackage = (pkg: Package) => {
     setSelectedPackage(pkg)
     setConfirmDialogOpen(true)
   }
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (selectedPackage) {
-      // Save to localStorage
       const userPackage = {
-        userId: 1, // Mock user ID
+        userId: userId || "unknown",
         package: selectedPackage,
         purchaseDate: new Date().toISOString(),
         status: "active",
       }
       localStorage.setItem("userPackage", JSON.stringify(userPackage))
+
+      if (userId) {
+        const endDate =
+          selectedPackage.type === "duration" && selectedPackage.durationMonths
+            ? new Date(
+                new Date().setMonth(new Date().getMonth() + selectedPackage.durationMonths),
+              ).toISOString()
+            : undefined
+
+        await fetch("/api/packages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            packageId: selectedPackage.id,
+            packageName: selectedPackage.name,
+            packageType: selectedPackage.type,
+            totalSessions: selectedPackage.totalSessions,
+            endDate,
+          }),
+        })
+      }
 
       if (onSelectPackage) {
         onSelectPackage(selectedPackage)
@@ -132,7 +160,6 @@ export function PackageSelection({ currentPackage, onSelectPackage }: PackageSel
         <p className="text-muted-foreground">Chọn gói tập phù hợp với nhu cầu và mục tiêu của bạn</p>
       </div>
 
-      {/* Session Packages */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Zap className="w-5 h-5 text-primary" />
@@ -180,7 +207,6 @@ export function PackageSelection({ currentPackage, onSelectPackage }: PackageSel
         </div>
       </div>
 
-      {/* Duration Packages */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-primary" />
@@ -228,7 +254,6 @@ export function PackageSelection({ currentPackage, onSelectPackage }: PackageSel
         </div>
       </div>
 
-      {/* Confirm Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -237,6 +262,22 @@ export function PackageSelection({ currentPackage, onSelectPackage }: PackageSel
           </DialogHeader>
           {selectedPackage && (
             <div className="space-y-4 py-4">
+              <div className="rounded-lg border p-4">
+                <div className="flex items-start gap-4">
+                  <img
+                    src={qrSrc}
+                    alt={`QR thanh toán ${bankName}`}
+                    className="h-40 w-40 rounded-md border"
+                  />
+                  <div className="space-y-2 text-sm">
+                    <p className="font-semibold">Thanh toán qua QR</p>
+                    <p>Ngân hàng: {bankName}</p>
+                    <p>Số tài khoản: {bankAccount}</p>
+                    <p>Chủ tài khoản: {accountName}</p>
+                    <p>Nội dung: {qrDescription}</p>
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Tên gói:</span>
                 <span className="font-semibold">{selectedPackage.name}</span>

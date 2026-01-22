@@ -6,6 +6,11 @@ export interface User {
   password: string // In production, this should be hashed
   name: string
   role: "member" | "trainer" | "admin"
+  avatar?: string
+  phone?: string
+  age?: number
+  gender?: string
+  height?: number
   currentWeight?: number
   targetWeight?: number
   streak?: number

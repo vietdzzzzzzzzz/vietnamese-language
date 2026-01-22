@@ -5,138 +5,135 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Clock, Flame, Calendar } from "lucide-react"
-import type { AttendanceRecord, UserAttendance } from "@/types/attendance"
 import { toast } from "@/hooks/use-toast"
 
+type AttendanceRecord = {
+  id: string
+  checkInTime: string
+  checkOutTime?: string
+  duration?: number
+}
+
 interface CheckInCardProps {
-  userId: number
+  userId: string
   onCheckIn: (newSession: number, newStreak: number) => void
 }
 
 export function CheckInCard({ userId, onCheckIn }: CheckInCardProps) {
-  const [attendance, setAttendance] = useState<UserAttendance | null>(null)
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [isCheckedInToday, setIsCheckedInToday] = useState(false)
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null)
+  const [currentStreak, setCurrentStreak] = useState(0)
+  const [totalSessions, setTotalSessions] = useState(0)
 
   useEffect(() => {
-    // Load attendance data from localStorage
-    const savedAttendance = localStorage.getItem(`attendance_${userId}`)
-    if (savedAttendance) {
-      const data: UserAttendance = JSON.parse(savedAttendance)
-      setAttendance(data)
-
-      // Check if already checked in today
-      const today = new Date().toISOString().split("T")[0]
-      const todayCheckin = data.history.find((record) => record.date === today)
-      if (todayCheckin) {
-        setIsCheckedInToday(true)
-        setTodayRecord(todayCheckin)
-      }
-    } else {
-      // Initialize attendance data
-      const initialAttendance: UserAttendance = {
-        userId,
-        totalSessions: 0,
-        currentStreak: 0,
-        history: [],
-      }
-      setAttendance(initialAttendance)
-      localStorage.setItem(`attendance_${userId}`, JSON.stringify(initialAttendance))
-    }
+    loadAttendance()
   }, [userId])
 
-  const handleCheckIn = () => {
-    if (!attendance) return
+  const loadAttendance = async () => {
+    try {
+      const response = await fetch(`/api/attendance?userId=${userId}`)
+      if (!response.ok) return
+      const data = await response.json()
+      const attendanceRecords = Array.isArray(data?.attendances) ? data.attendances : []
+      setRecords(attendanceRecords)
+      const total = attendanceRecords.length
+      setTotalSessions(total)
 
+      const { streak, checkedInToday, today } = calculateStreak(attendanceRecords)
+      setCurrentStreak(streak)
+      setIsCheckedInToday(checkedInToday)
+      setTodayRecord(today)
+      return { total, streak }
+    } catch (error) {
+      // Ignore load errors for now
+    }
+    return { total: 0, streak: 0 }
+  }
+
+  const calculateStreak = (attendanceRecords: AttendanceRecord[]) => {
+    if (attendanceRecords.length === 0) {
+      return { streak: 0, checkedInToday: false, today: null as AttendanceRecord | null }
+    }
+
+    const sorted = [...attendanceRecords].sort(
+      (a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime(),
+    )
+    const todayDate = new Date().toISOString().split("T")[0]
+    const uniqueDates = Array.from(
+      new Set(sorted.map((record) => record.checkInTime.split("T")[0])),
+    )
+
+    let streak = 0
+    let currentDate = todayDate
+    for (const date of uniqueDates) {
+      if (date === currentDate) {
+        streak += 1
+        const prev = new Date(currentDate)
+        prev.setDate(prev.getDate() - 1)
+        currentDate = prev.toISOString().split("T")[0]
+      } else {
+        break
+      }
+    }
+
+    const checkedInToday = uniqueDates[0] === todayDate
+    const today = checkedInToday ? sorted.find((record) => record.checkInTime.startsWith(todayDate)) || null : null
+
+    return { streak, checkedInToday, today }
+  }
+
+  const handleCheckIn = async () => {
     const now = new Date()
-    const today = now.toISOString().split("T")[0]
     const checkInTime = now.toISOString()
 
-    // Create new attendance record
-    const newRecord: AttendanceRecord = {
-      id: `${userId}_${Date.now()}`,
-      userId,
-      checkInTime,
-      date: today,
+    const response = await fetch("/api/attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, checkInTime }),
+    })
+
+    if (!response.ok) {
+      toast({
+        title: "Điểm danh thất bại",
+        description: "Không thể lưu điểm danh. Vui lòng thử lại.",
+      })
+      return
     }
 
-    // Calculate new streak
-    let newStreak = attendance.currentStreak
-    if (attendance.lastCheckIn) {
-      const lastDate = new Date(attendance.lastCheckIn)
-      const daysDiff = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      if (daysDiff === 1) {
-        // Consecutive day
-        newStreak += 1
-      } else if (daysDiff > 1) {
-        // Streak broken
-        newStreak = 1
-      }
-    } else {
-      newStreak = 1
-    }
-
-    // Update attendance
-    const updatedAttendance: UserAttendance = {
-      ...attendance,
-      totalSessions: attendance.totalSessions + 1,
-      currentStreak: newStreak,
-      lastCheckIn: today,
-      history: [newRecord, ...attendance.history],
-    }
-
-    setAttendance(updatedAttendance)
-    setIsCheckedInToday(true)
-    setTodayRecord(newRecord)
-    localStorage.setItem(`attendance_${userId}`, JSON.stringify(updatedAttendance))
-
-    // Update parent component
-    onCheckIn(updatedAttendance.totalSessions, newStreak)
-
-    // Update package used sessions
-    const savedPackage = localStorage.getItem("userPackage")
-    if (savedPackage) {
-      const userPackage = JSON.parse(savedPackage)
-      if (userPackage.package.type === "session") {
-        userPackage.package.usedSessions = (userPackage.package.usedSessions || 0) + 1
-        localStorage.setItem("userPackage", JSON.stringify(userPackage))
-      }
-    }
+    const updated = await loadAttendance()
+    onCheckIn(updated.total, updated.streak)
 
     toast({
       title: "Điểm danh thành công!",
-      description: `Buổi thứ ${updatedAttendance.totalSessions}. Streak: ${newStreak} ngày 🔥`,
+      description: `Buổi thứ ${updated.total}. Streak: ${updated.streak} ngày.`,
     })
   }
 
-  const handleCheckOut = () => {
-    if (!todayRecord || !attendance) return
+  const handleCheckOut = async () => {
+    if (!todayRecord) return
 
-    const now = new Date()
-    const checkOutTime = now.toISOString()
+    const now = new Date().toISOString()
+    const response = await fetch("/api/attendance", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attendanceId: todayRecord.id, checkOutTime: now }),
+    })
 
-    // Update today's record with checkout time
-    const updatedHistory = attendance.history.map((record) =>
-      record.id === todayRecord.id ? { ...record, checkOutTime } : record,
-    )
-
-    const updatedAttendance = {
-      ...attendance,
-      history: updatedHistory,
+    if (!response.ok) {
+      toast({
+        title: "Check-out thất bại",
+        description: "Không thể lưu check-out. Vui lòng thử lại.",
+      })
+      return
     }
 
-    setAttendance(updatedAttendance)
-    setTodayRecord({ ...todayRecord, checkOutTime })
-    localStorage.setItem(`attendance_${userId}`, JSON.stringify(updatedAttendance))
-
+    await loadAttendance()
     toast({
       title: "Check-out thành công!",
       description: "Hẹn gặp lại bạn buổi tập tiếp theo!",
     })
   }
-
-  if (!attendance) return null
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString)
@@ -176,9 +173,9 @@ export function CheckInCard({ userId, onCheckIn }: CheckInCardProps) {
             <div className="flex gap-2 pt-2 border-t">
               <Badge variant="outline" className="flex items-center gap-1">
                 <Flame className="w-3 h-3 text-orange-500" />
-                {attendance.currentStreak} ngày
+                {currentStreak} ngày
               </Badge>
-              <Badge variant="outline">Tổng: {attendance.totalSessions} buổi</Badge>
+              <Badge variant="outline">Tổng: {totalSessions} buổi</Badge>
             </div>
           </div>
         ) : (
@@ -191,9 +188,9 @@ export function CheckInCard({ userId, onCheckIn }: CheckInCardProps) {
             <div className="flex gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <Flame className="w-3 h-3 text-orange-500" />
-                {attendance.currentStreak} ngày
+                {currentStreak} ngày
               </Badge>
-              <Badge variant="outline">Tổng: {attendance.totalSessions} buổi</Badge>
+              <Badge variant="outline">Tổng: {totalSessions} buổi</Badge>
             </div>
           </div>
         )}

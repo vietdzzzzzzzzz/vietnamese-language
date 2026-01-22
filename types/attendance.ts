@@ -1,6 +1,6 @@
 export interface AttendanceRecord {
   id: string
-  userId: number
+  userId: string
   checkInTime: string
   checkOutTime?: string
   date: string
@@ -8,7 +8,7 @@ export interface AttendanceRecord {
 }
 
 export interface UserAttendance {
-  userId: number
+  userId: string
   totalSessions: number
   currentStreak: number
   lastCheckIn?: string

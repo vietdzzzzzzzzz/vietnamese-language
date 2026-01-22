@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dumbbell, Users, Brain, TrendingUp, Zap, Target } from "lucide-react"
+import { SpringGifs } from "@/components/shared/spring-gifs"
 
 export default function LandingPage() {
   return (
@@ -60,6 +61,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <SpringGifs />
 
       {/* Features Section */}
       <section className="py-20 md:py-32">

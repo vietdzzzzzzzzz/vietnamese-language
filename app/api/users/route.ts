@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import clientPromise from "@/lib/mongodb"
+import { hashPassword } from "@/lib/auth"
 import type { User } from "@/lib/models/User"
 
 export async function GET(request: NextRequest) {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     const newUser: User = {
       email,
-      password, // In production, hash this with bcrypt
+      password: hashPassword(password),
       name,
       role: role || "member",
       currentWeight: 0,

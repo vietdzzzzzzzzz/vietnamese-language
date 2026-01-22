@@ -19,30 +19,41 @@ export function RegisterForm() {
     role: "member",
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
-    // Mock registration
-    setTimeout(() => {
-      const userData = {
-        email: formData.email,
-        role: formData.role,
-        name: formData.name,
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        setError(data?.error || "Registration failed.")
+        return
       }
-      sessionStorage.setItem("user", JSON.stringify(userData))
 
-      // Redirect based on role
-      if (formData.role === "admin") {
+      const data = await response.json()
+      const role = data?.user?.role
+
+      if (role === "admin") {
         router.push("/admin")
-      } else if (formData.role === "trainer") {
+      } else if (role === "trainer") {
         router.push("/trainer")
       } else {
         router.push("/member")
       }
+    } catch (err) {
+      setError("Registration failed.")
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -98,6 +109,7 @@ export function RegisterForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Đang đăng ký..." : "Đăng ký"}
           </Button>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </form>
       </CardContent>
     </Card>

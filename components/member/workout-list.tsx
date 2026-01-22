@@ -8,7 +8,6 @@ import { Clock, Flame, CheckCircle2, Dumbbell } from "lucide-react"
 import { ExerciseDetailDialog } from "./exercise-detail-dialog"
 import type { WorkoutExercise } from "@/types/exercise"
 
-// Sample exercises data with sets, reps, and rest time
 const exercisesData = [
   {
     id: 1,
@@ -128,23 +127,54 @@ const workouts = [
   },
 ]
 
-export function WorkoutList() {
+type WorkoutListProps = {
+  userId?: string
+  currentWeight?: number
+}
+
+export function WorkoutList({ userId, currentWeight }: WorkoutListProps) {
   const [selectedExercise, setSelectedExercise] = useState<WorkoutExercise | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [completedWorkouts, setCompletedWorkouts] = useState<Record<number, boolean>>({})
+  const [savingWorkoutId, setSavingWorkoutId] = useState<number | null>(null)
 
   const handleExerciseClick = (workoutExercise: WorkoutExercise) => {
     setSelectedExercise(workoutExercise)
     setIsDialogOpen(true)
   }
 
-  // Get user ID from session storage
-  const getUserId = () => {
-    const userData = sessionStorage.getItem("user")
-    if (userData) {
-      const user = JSON.parse(userData)
-      return user.id || "guest"
+  const handleCompleteWorkout = async (workoutId: number) => {
+    if (!userId) return
+    const workout = workouts.find((item) => item.id === workoutId)
+    if (!workout) return
+
+    setSavingWorkoutId(workoutId)
+    try {
+      const exercises = workout.exercises.map((exercise) => ({
+        name: exercise.exercise.name,
+        sets: exercise.sets,
+        reps: typeof exercise.reps === "string" ? Number.parseInt(exercise.reps, 10) || 0 : exercise.reps,
+        weight: 0,
+      }))
+
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          date: new Date().toISOString(),
+          weight: currentWeight || undefined,
+          exercises,
+          notes: workout.name,
+        }),
+      })
+
+      if (response.ok) {
+        setCompletedWorkouts((prev) => ({ ...prev, [workoutId]: true }))
+      }
+    } finally {
+      setSavingWorkoutId(null)
     }
-    return "guest"
   }
 
   return (
@@ -161,12 +191,14 @@ export function WorkoutList() {
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2">
                   {workout.name}
-                  {workout.completed && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                  {(workout.completed || completedWorkouts[workout.id]) && (
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  )}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">{workout.date}</p>
               </div>
-              <Badge variant={workout.completed ? "default" : "secondary"}>
-                {workout.completed ? "Hoàn thành" : "Sắp tới"}
+              <Badge variant={workout.completed || completedWorkouts[workout.id] ? "default" : "secondary"}>
+                {workout.completed || completedWorkouts[workout.id] ? "Hoàn thành" : "Sắp tới"}
               </Badge>
             </div>
           </CardHeader>
@@ -208,7 +240,15 @@ export function WorkoutList() {
                   {workout.calories} cal
                 </div>
               </div>
-              {!workout.completed && <Button className="w-full">Bắt đầu tập</Button>}
+              {!workout.completed && !completedWorkouts[workout.id] && (
+                <Button
+                  className="w-full"
+                  onClick={() => handleCompleteWorkout(workout.id)}
+                  disabled={savingWorkoutId === workout.id}
+                >
+                  {savingWorkoutId === workout.id ? "Đang lưu..." : "Hoàn thành"}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -218,7 +258,7 @@ export function WorkoutList() {
         workoutExercise={selectedExercise}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        userId={getUserId()}
+        userId={userId || "guest"}
       />
     </div>
   )
